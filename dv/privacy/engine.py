@@ -1,9 +1,8 @@
 """Privacy engine orchestrator: detect → replace → rehydrate."""
-from typing import Dict, List
 
 from .detector import Detector, SensitiveEntity
-from .tokenizer import Tokenizer
 from .rehydrator import Rehydrator
+from .tokenizer import Tokenizer
 
 
 class PrivacyEngine:
@@ -12,7 +11,7 @@ class PrivacyEngine:
     def __init__(self) -> None:
         self.detector = Detector()
 
-    def process(self, text: str) -> tuple[str, Dict[str, str]]:
+    def process(self, text: str) -> tuple[str, dict[str, str]]:
         """
         Replace sensitive entities with semantic placeholders.
         Returns (replaced_text, mapping).
@@ -21,7 +20,7 @@ class PrivacyEngine:
 
         # First pass: assign tokens in forward order
         entity_tokens: list[tuple[SensitiveEntity, str]] = []
-        type_counters: Dict[str, int] = {}
+        type_counters: dict[str, int] = {}
         for ent in entities:
             type_counters[ent.entity_type] = type_counters.get(ent.entity_type, 0) + 1
             token = Tokenizer.tokenize(ent.entity_type, type_counters[ent.entity_type])
@@ -35,11 +34,12 @@ class PrivacyEngine:
         mapping = {token: ent.text for ent, token in entity_tokens}
         return replaced, mapping
 
-    def restore(self, text: str, mapping: Dict[str, str]) -> str:
+    def restore(self, text: str, mapping: dict[str, str]) -> str:
         return Rehydrator(mapping).rehydrate_text(text)
 
-    def restore_stream(self, lines, mapping: Dict[str, str]):
+    def restore_stream(self, lines, mapping: dict[str, str]):
         return Rehydrator(mapping).rehydrate_sse_stream(lines)
 
-    def restore_json(self, data: dict, mapping: Dict[str, str]) -> dict:
+    def restore_json(self, data: dict, mapping: dict[str, str]) -> dict:
+        """Restore placeholders in a decoded JSON response body."""
         return Rehydrator(mapping).rehydrate_json(data)

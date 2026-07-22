@@ -1,6 +1,7 @@
 """Gateway proxy with inline privacy processing."""
+import json
 import time
-from typing import Any, Dict
+from typing import Any
 
 import httpx
 from fastapi import Request, Response
@@ -25,16 +26,62 @@ class PrivacyProxy:
         self.profile = profile
         self.engine = PrivacyEngine()
 
+    def _redact_json_body(self, body: bytes) -> tuple[bytes, dict[str, str]]:
+        """Redact decoded JSON values, then serialize safely.
+
+        Do not run string substitution over JSON source. It can invalidate a
+        JSON escape sequence when the sensitive span begins after a backslash.
+        """
+        payload = json.loads(body.decode("utf-8"))
+        counters: dict[str, int] = {}
+        mapping: dict[str, str] = {}
+
+        def redact_string(value: str) -> str:
+            entities = self.engine.detector.detect(value)
+            # Rules may overlap. Keep the first span in detector order and
+            # replace right-to-left so offsets remain valid.
+            selected = []
+            occupied_until = -1
+            for entity in entities:
+                if entity.start >= occupied_until:
+                    selected.append(entity)
+                    occupied_until = entity.end
+            redacted = value
+            for entity in reversed(selected):
+                counters[entity.entity_type] = counters.get(entity.entity_type, 0) + 1
+                token = f"<{entity.entity_type.upper()}_{counters[entity.entity_type]}>"
+                mapping[token] = entity.text
+                redacted = redacted[:entity.start] + token + redacted[entity.end:]
+            return redacted
+
+        def walk(value: Any) -> Any:
+            if isinstance(value, str):
+                return redact_string(value)
+            if isinstance(value, list):
+                return [walk(item) for item in value]
+            if isinstance(value, dict):
+                return {key: walk(item) for key, item in value.items()}
+            return value
+
+        redacted = json.dumps(walk(payload), ensure_ascii=False, separators=(",", ":"))
+        return redacted.encode("utf-8"), mapping
+
     async def handle(self, request: Request, path: str) -> Response:
         start = time.perf_counter()
         request_id = str(id(request))  # Simple unique ID
 
         # 1. Read body
         body = await request.body()
-        text = body.decode("utf-8", errors="ignore")
-
-        # 2. Privacy detection & replacement
-        replaced, mapping = self.engine.process(text)
+        # 2. Privacy detection & replacement. The upstream APIs use JSON;
+        # parse it first so redaction cannot corrupt escape sequences.
+        try:
+            replaced, mapping = self._redact_json_body(body)
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            return Response(
+                content='{"error":"Request body must be valid UTF-8 JSON"}',
+                status_code=400,
+                media_type="application/json",
+            )
         entities_count = len(mapping)
 
         # 3. Route to upstream
@@ -72,7 +119,7 @@ class PrivacyProxy:
                     method=request.method,
                     url=f"{config['base_url'].rstrip('/')}/{path}",
                     headers=headers,
-                    content=replaced.encode("utf-8"),
+                    content=replaced,
                 )
                 upstream_resp = await client.send(upstream_req, stream=True)
         except Exception as e:
@@ -98,8 +145,6 @@ class PrivacyProxy:
         is_sse = "text/event-stream" in content_type
 
         if is_sse:
-            rehydrator = self.engine.restore_stream([], mapping)
-
             async def event_stream():
                 async for line in upstream_resp.aiter_text():
                     if line:
@@ -127,8 +172,17 @@ class PrivacyProxy:
 
         # Non-streaming
         content = await upstream_resp.aread()
-        text_resp = content.decode("utf-8", errors="ignore")
-        final = self.engine.restore(text_resp, mapping)
+        try:
+            response_payload = json.loads(content.decode("utf-8"))
+            final = json.dumps(
+                self.engine.restore_json(response_payload, mapping),
+                ensure_ascii=False,
+                separators=(",", ":"),
+            )
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            # Do not attempt raw string substitution in a non-JSON body;
+            # returning it unchanged is safer than emitting malformed JSON.
+            final = content
         duration = (time.perf_counter() - start) * 1000
         self.audit.log(
             request_id=request_id,

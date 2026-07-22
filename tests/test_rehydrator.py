@@ -26,3 +26,11 @@ class TestRehydrator:
         data = {"message": "Use <KEY_1>"}
         result = r.rehydrate_json(data)
         assert result["message"] == "Use secret"
+
+    def test_restore_json_preserves_backslashes(self):
+        from dv.privacy.engine import PrivacyEngine
+
+        data = {"message": r"Use \\<EMAIL_1>"}
+        result = PrivacyEngine().restore_json(data, {"<EMAIL_1>": "a@b.com"})
+        encoded = json.dumps(result)
+        assert json.loads(encoded)["message"] == r"Use \\a@b.com"

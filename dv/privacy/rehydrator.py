@@ -1,19 +1,19 @@
 """Stream rehydration: restore original data from placeholders."""
 import json
 import re
-from typing import Dict, Iterator
+from collections.abc import Iterator
 
 
 class Rehydrator:
     """Replace placeholders with original values in text or SSE streams."""
 
-    def __init__(self, mapping: Dict[str, str]):
+    def __init__(self, mapping: dict[str, str]):
         """
         mapping: {<EMAIL_1>: "marco@example.com", ...}
         """
         self.mapping = mapping
         if mapping:
-            self._pattern = re.compile("|".join(re.escape(k) for k in mapping.keys()))
+            self._pattern = re.compile("|".join(re.escape(k) for k in mapping))
         else:
             self._pattern = None
 
@@ -46,8 +46,21 @@ class Rehydrator:
             else:
                 yield line
 
-    def rehydrate_json(self, data: dict) -> dict:
-        """Rehydrate a full JSON response body."""
-        text = json.dumps(data)
-        rehydrated = self.rehydrate_text(text)
-        return json.loads(rehydrated)
+    def rehydrate_json(self, data):
+        """Rehydrate values inside decoded JSON, never inside JSON source text.
+
+        Replacing in an already serialized JSON document can produce invalid
+        escapes (for example ``\\<TOKEN>``). Walking decoded values and
+        serializing afterwards preserves JSON correctness.
+        """
+
+        def walk(value):
+            if isinstance(value, str):
+                return self.rehydrate_text(value)
+            if isinstance(value, list):
+                return [walk(item) for item in value]
+            if isinstance(value, dict):
+                return {key: walk(item) for key, item in value.items()}
+            return value
+
+        return walk(data)
