@@ -1,6 +1,7 @@
 """Shared test fixtures."""
-import pytest
 from pathlib import Path
+
+import pytest
 
 from dv.vault.store import VaultStore
 

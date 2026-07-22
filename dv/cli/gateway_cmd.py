@@ -1,8 +1,6 @@
 """Gateway control commands: dv start / stop / status."""
 from __future__ import annotations
 
-import sys
-
 import click
 import uvicorn
 

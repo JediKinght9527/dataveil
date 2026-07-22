@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import sqlite3
 from pathlib import Path
-from typing import Optional
 
 from .crypto import VaultCrypto
 
@@ -55,7 +54,7 @@ class VaultStore:
                 (profile, provider, base_url, blob),
             )
 
-    def get_key(self, profile: str) -> Optional[dict]:
+    def get_key(self, profile: str) -> dict | None:
         with sqlite3.connect(self.db_path) as conn:
             row = conn.execute(
                 "SELECT provider, base_url, encrypted_key FROM secrets WHERE profile = ?",

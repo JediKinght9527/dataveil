@@ -10,8 +10,8 @@ def cli():
 
 
 # Import subcommands
+from dv.cli.gateway_cmd import start, status, stop  # noqa: E402
 from dv.cli.vault_cmd import vault  # noqa: E402
-from dv.cli.gateway_cmd import start, stop, status  # noqa: E402
 
 cli.add_command(vault)
 cli.add_command(start)

@@ -4,7 +4,6 @@ Multi-layer detector: Regex (fast) → NER (smart) → Code-Aware (contextual)
 import hashlib
 import re
 from dataclasses import dataclass
-from typing import List
 
 
 @dataclass(frozen=True)
@@ -38,8 +37,8 @@ class Detector:
         ),
     }
 
-    def detect(self, text: str) -> List[SensitiveEntity]:
-        entities: List[SensitiveEntity] = []
+    def detect(self, text: str) -> list[SensitiveEntity]:
+        entities: list[SensitiveEntity] = []
         seen_spans: set[tuple[int, int]] = set()
 
         for entity_type, pattern in self.PATTERNS.items():

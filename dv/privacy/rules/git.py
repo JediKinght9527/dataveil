@@ -1,7 +1,6 @@
 """Auto-detect project info from git remotes."""
 import re
 import subprocess
-from typing import List
 
 from dv.privacy.detector import SensitiveEntity
 from dv.privacy.rules.base import BaseRule
@@ -12,13 +11,13 @@ class GitRule(BaseRule):
 
     name = "git"
 
-    def detect(self, text: str) -> List[SensitiveEntity]:
+    def detect(self, text: str) -> list[SensitiveEntity]:
         # MVP: simple heuristic based on git remote output
         # Future: cache remote hosts and match against text
         return []
 
     @staticmethod
-    def get_remote_hosts() -> List[str]:
+    def get_remote_hosts() -> list[str]:
         """Extract hostnames from git remotes in current directory."""
         try:
             result = subprocess.run(

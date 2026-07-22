@@ -1,6 +1,5 @@
 """Code-aware detection rules."""
 import re
-from typing import List
 
 from dv.privacy.detector import SensitiveEntity
 from dv.privacy.rules.base import BaseRule
@@ -21,8 +20,8 @@ class CodeRule(BaseRule):
         re.IGNORECASE,
     )
 
-    def detect(self, text: str) -> List[SensitiveEntity]:
-        entities: List[SensitiveEntity] = []
+    def detect(self, text: str) -> list[SensitiveEntity]:
+        entities: list[SensitiveEntity] = []
         for m in self.ENV_KEY_PATTERN.finditer(text):
             entities.append(
                 SensitiveEntity(

@@ -1,6 +1,8 @@
 """Tests for Vault encryption and storage."""
+import pytest
+from cryptography.exceptions import InvalidTag
+
 from dv.vault.crypto import VaultCrypto
-from dv.vault.store import VaultStore
 
 
 class TestVaultCrypto:
@@ -13,7 +15,7 @@ class TestVaultCrypto:
 
     def test_wrong_password_fails(self):
         token = VaultCrypto.encrypt(b"secret", "correct")
-        with pytest.raises(Exception):
+        with pytest.raises(InvalidTag):
             VaultCrypto.decrypt(token, "wrong")
 
 
@@ -39,6 +41,3 @@ class TestVaultStore:
         assert temp_vault.remove_key("tmp") is True
         assert temp_vault.get_key("tmp") is None
         assert temp_vault.remove_key("tmp") is False
-
-
-import pytest

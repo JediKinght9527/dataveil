@@ -3,10 +3,10 @@ from __future__ import annotations
 
 from fastapi import FastAPI, Request
 
+from dv.audit.logger import AuditLogger
 from dv.config import get_settings
 from dv.gateway.proxy import PrivacyProxy
 from dv.vault.store import VaultStore
-from dv.audit.logger import AuditLogger
 
 app = FastAPI(title="DataVeil Gateway", version="0.1.0")
 

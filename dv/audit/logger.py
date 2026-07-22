@@ -1,9 +1,8 @@
 """Audit logging with structured JSON Lines output."""
 import json
-import time
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 
 class AuditLogger:
@@ -31,7 +30,7 @@ class AuditLogger:
         if not self.enabled:
             return
 
-        entry: Dict[str, Any] = {
+        entry: dict[str, Any] = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "request_id": request_id,
             "method": method,
