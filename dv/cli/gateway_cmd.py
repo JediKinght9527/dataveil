@@ -4,7 +4,7 @@ from __future__ import annotations
 import click
 import uvicorn
 
-from dv.config import get_settings
+from dv.config import load_config
 from dv.gateway.server import app
 
 
@@ -14,18 +14,18 @@ from dv.gateway.server import app
 @click.option("--profile", default=None, help="Vault profile to use")
 def start(host: str | None, port: int | None, profile: str | None):
     """Start the DataVeil gateway."""
-    settings = get_settings()
-    bind_host = host or settings.gateway_host
-    bind_port = port or settings.gateway_port
+    config = load_config()
+    bind_host = host or config.gateway.host
+    bind_port = port or config.gateway.port
     if profile:
         import os
 
         os.environ["DV_DEFAULT_PROFILE"] = profile
 
     click.echo(f"🔒 DataVeil Gateway starting at http://{bind_host}:{bind_port}")
-    click.echo(f"   Profile: {profile or settings.default_profile}")
-    click.echo(f"   Vault: {settings.vault_path}")
-    click.echo(f"   Audit: {settings.audit_log_path}")
+    click.echo(f"   Profile: {profile or config.gateway.default_profile}")
+    click.echo(f"   Vault: {config.vault.path}")
+    click.echo(f"   Audit: {config.audit.log_path}")
     uvicorn.run(app, host=bind_host, port=bind_port)
 
 
@@ -38,8 +38,8 @@ def stop():
 @click.command()
 def status():
     """Show gateway status."""
-    settings = get_settings()
-    click.echo(f"Config vault: {settings.vault_path}")
-    click.echo(f"Default profile: {settings.default_profile}")
-    click.echo(f"Gateway endpoint: http://{settings.gateway_host}:{settings.gateway_port}")
+    config = load_config()
+    click.echo(f"Config vault: {config.vault.path}")
+    click.echo(f"Default profile: {config.gateway.default_profile}")
+    click.echo(f"Gateway endpoint: http://{config.gateway.host}:{config.gateway.port}")
     click.echo("Run 'dv start' to launch the gateway.")

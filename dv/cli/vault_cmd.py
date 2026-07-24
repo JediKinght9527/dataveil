@@ -1,7 +1,7 @@
 """Vault management commands: dv vault add/list/rm."""
 import click
 
-from dv.config import get_settings
+from dv.config import load_config
 from dv.vault.store import VaultStore
 
 
@@ -19,8 +19,8 @@ def vault():
 @click.password_option("--password", prompt="Vault password", confirmation_prompt=False)
 def add(profile: str, provider: str, base_url: str, api_key: str, password: str):
     """Add an encrypted API key to the vault."""
-    settings = get_settings()
-    store = VaultStore(db_path=settings.vault_path, password=password)
+    config = load_config()
+    store = VaultStore(db_path=config.vault.path, password=password)
 
     if not base_url:
         from dv.vault.profile import DEFAULT_PROFILES
@@ -38,8 +38,8 @@ def add(profile: str, provider: str, base_url: str, api_key: str, password: str)
 @click.password_option("--password", prompt="Vault password", confirmation_prompt=False)
 def list_keys(password: str):
     """List stored profiles."""
-    settings = get_settings()
-    store = VaultStore(db_path=settings.vault_path, password=password)
+    config = load_config()
+    store = VaultStore(db_path=config.vault.path, password=password)
     profiles = store.list_profiles()
     if not profiles:
         click.echo("No profiles found.")
@@ -54,8 +54,8 @@ def list_keys(password: str):
 @click.password_option("--password", prompt="Vault password", confirmation_prompt=False)
 def rm(profile: str, password: str):
     """Remove a profile from the vault."""
-    settings = get_settings()
-    store = VaultStore(db_path=settings.vault_path, password=password)
+    config = load_config()
+    store = VaultStore(db_path=config.vault.path, password=password)
     if store.remove_key(profile):
         click.echo(f"🗑️  Profile '{profile}' removed.")
     else:
