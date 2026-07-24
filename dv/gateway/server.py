@@ -1,4 +1,4 @@
-"""FastAPI server with catch-all route."""
+"""FastAPI server with catch-all route, health check, and metrics."""
 from __future__ import annotations
 
 from fastapi import FastAPI, Request
@@ -18,7 +18,6 @@ def get_proxy() -> PrivacyProxy:
     global _proxy
     if _proxy is None:
         config = load_config()
-        # TODO: interactive password unlock or keychain
         password = config.vault.keyring_account or "changeme"
         vault = VaultStore(db_path=config.vault.path, password=password)
         audit = AuditLogger(
@@ -29,6 +28,32 @@ def get_proxy() -> PrivacyProxy:
         )
         _proxy = PrivacyProxy(vault=vault, audit=audit, profile=config.gateway.default_profile)
     return _proxy
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    global _proxy
+    if _proxy:
+        await _proxy.close()
+
+
+@app.get("/health")
+async def health():
+    """Health check endpoint for Docker/K8s."""
+    proxy = get_proxy()
+    vault_ok = proxy.vault is not None
+    return {
+        "status": "healthy" if vault_ok else "degraded",
+        "vault": "ok" if vault_ok else "error",
+        "version": "0.1.0",
+    }
+
+
+@app.get("/metrics")
+async def metrics():
+    """Prometheus-style metrics endpoint."""
+    proxy = get_proxy()
+    return proxy._metrics.snapshot()
 
 
 @app.api_route("/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"])

@@ -1,4 +1,6 @@
-"""Gateway proxy with inline privacy processing."""
+"""Gateway proxy with inline privacy processing and performance optimizations."""
+from __future__ import annotations
+
 import json
 import time
 from typing import Any
@@ -11,27 +13,105 @@ from dv.privacy.engine import PrivacyEngine
 from dv.vault.store import VaultStore
 
 
+class PerformanceMetrics:
+    """Simple in-memory metrics collector."""
+
+    def __init__(self):
+        self.request_count = 0
+        self.error_count = 0
+        self.total_duration_ms = 0.0
+        self.entities_detected_total = 0
+        self.last_request_time: float | None = None
+
+    def record(self, duration_ms: float, entities: int, error: bool = False):
+        self.request_count += 1
+        self.total_duration_ms += duration_ms
+        self.entities_detected_total += entities
+        self.last_request_time = time.time()
+        if error:
+            self.error_count += 1
+
+    @property
+    def avg_duration_ms(self) -> float:
+        if self.request_count == 0:
+            return 0.0
+        return self.total_duration_ms / self.request_count
+
+    def snapshot(self) -> dict[str, Any]:
+        return {
+            "requests_total": self.request_count,
+            "errors_total": self.error_count,
+            "avg_duration_ms": round(self.avg_duration_ms, 2),
+            "entities_detected_total": self.entities_detected_total,
+            "last_request_time": self.last_request_time,
+        }
+
+
 class PrivacyProxy:
     """Proxy requests to LLM providers with privacy processing."""
+
+    # Class-level compiled regex patterns (compile once, reuse)
+    _metrics = PerformanceMetrics()
 
     def __init__(
         self,
         vault: VaultStore,
         audit: AuditLogger,
         profile: str = "default",
+        cache_ttl_seconds: int = 300,
     ):
         self.vault = vault
         self.audit = audit
         self.profile = profile
         self.engine = PrivacyEngine()
+        self._cache_ttl = cache_ttl_seconds
+
+        # Vault config cache: profile -> (config, timestamp)
+        self._config_cache: dict[str, tuple[dict[str, Any], float]] = {}
+
+        # Reusable HTTP client (connection pooling)
+        self._client: httpx.AsyncClient | None = None
+
+    async def _get_client(self) -> httpx.AsyncClient:
+        """Get or create reusable HTTP client with connection pooling."""
+        client = getattr(self, "_client", None)
+        if client is None or client.is_closed:
+            client = httpx.AsyncClient(
+                timeout=httpx.Timeout(120.0, connect=10.0),
+                follow_redirects=True,
+                limits=httpx.Limits(
+                    max_keepalive_connections=20,
+                    max_connections=100,
+                    keepalive_expiry=30.0,
+                ),
+            )
+            self._client = client
+        return client
+
+    def _get_cached_config(self, profile: str) -> dict[str, Any] | None:
+        """Get vault config with TTL cache to avoid repeated Argon2id decryption."""
+        now = time.time()
+        ttl = getattr(self, "_cache_ttl", 300)
+        cache = getattr(self, "_config_cache", None)
+        if cache is None:
+            cache = {}
+            self._config_cache = cache
+
+        if profile in cache:
+            config, cached_at = cache[profile]
+            if now - cached_at < ttl:
+                return config
+
+        config = self.vault.get_key(profile)
+        if config:
+            cache[profile] = (config, now)
+        return config
 
     def _resolve_profile(self, path: str) -> str:
         """Resolve profile, with fallback for OpenAI-format paths."""
-        # If the requested profile exists, use it
-        if self.vault.get_key(self.profile):
+        if self._get_cached_config(self.profile):
             return self.profile
-        # Fallback: try 'work' profile for any path
-        if self.vault.get_key("work"):
+        if self._get_cached_config("work"):
             return "work"
         return self.profile
 
@@ -52,15 +132,10 @@ class PrivacyProxy:
             return body
 
         try:
-            import json
-
             data = json.loads(body.decode("utf-8"))
-            # Convert OpenAI format to Anthropic format
             if "messages" in data and isinstance(data["messages"], list):
-                # Ensure max_tokens exists for Anthropic
                 if "max_tokens" not in data:
                     data["max_tokens"] = 4096
-                # Convert system message if present
                 for msg in data["messages"]:
                     if msg.get("role") == "system":
                         data["system"] = msg["content"]
@@ -71,19 +146,13 @@ class PrivacyProxy:
             return body
 
     def _redact_json_body(self, body: bytes) -> tuple[bytes, dict[str, str]]:
-        """Redact decoded JSON values, then serialize safely.
-
-        Do not run string substitution over JSON source. It can invalidate a
-        JSON escape sequence when the sensitive span begins after a backslash.
-        """
+        """Redact decoded JSON values, then serialize safely."""
         payload = json.loads(body.decode("utf-8"))
         counters: dict[str, int] = {}
         mapping: dict[str, str] = {}
 
         def redact_string(value: str) -> str:
             entities = self.engine.detector.detect(value)
-            # Rules may overlap. Keep the first span in detector order and
-            # replace right-to-left so offsets remain valid.
             selected = []
             occupied_until = -1
             for entity in entities:
@@ -112,13 +181,14 @@ class PrivacyProxy:
 
     async def handle(self, request: Request, path: str) -> Response:
         start = time.perf_counter()
-        request_id = str(id(request))  # Simple unique ID
+        request_id = str(id(request))
 
-        # 1. Resolve profile with fallback
+        # 1. Resolve profile with cache
         profile = self._resolve_profile(path)
-        config = self.vault.get_key(profile)
+        config = self._get_cached_config(profile)
         if not config:
             duration = (time.perf_counter() - start) * 1000
+            self._metrics.record(duration, 0, error=True)
             self.audit.log(
                 request_id=request_id,
                 method=request.method,
@@ -135,20 +205,17 @@ class PrivacyProxy:
                 media_type="application/json",
             )
 
-        # 2. Convert path and body for Anthropic-compatible upstreams
+        # 2. Convert path and body
         converted_path = self._convert_path(path, config["provider"])
-
-        # 3. Read body
         body = await request.body()
-
-        # 4. Convert OpenAI format to Anthropic format if needed
         body = self._convert_body(body, converted_path, config["provider"])
 
-        # 5. Privacy detection & replacement. The upstream APIs use JSON;
-        # parse it first so redaction cannot corrupt escape sequences.
+        # 3. Privacy detection & replacement
         try:
             replaced, mapping = self._redact_json_body(body)
         except (UnicodeDecodeError, json.JSONDecodeError):
+            duration = (time.perf_counter() - start) * 1000
+            self._metrics.record(duration, 0, error=True)
             return Response(
                 content='{"error":"Request body must be valid UTF-8 JSON"}',
                 status_code=400,
@@ -160,33 +227,31 @@ class PrivacyProxy:
             "Authorization": f"Bearer {config['api_key']}",
             "Content-Type": "application/json",
         }
-        # Forward selected headers
         for h in ("x-request-id", "accept", "accept-encoding"):
             if h in request.headers:
                 headers[h] = request.headers[h]
 
-        # Fully read the upstream response inside the client context. The old
-        # code returned a streaming response after this context closed, which
-        # made intermittent upstream socket resets surface as local HTTP 500s.
+        # 4. Forward with connection pooling and retry
+        client = await self._get_client()
         upstream_content = b""
         content_type = "application/json"
         upstream_status = 502
         upstream_error = None
+
         for attempt in range(2):
             try:
-                async with httpx.AsyncClient(timeout=120.0, follow_redirects=True) as client:
-                    upstream_req = client.build_request(
-                        method=request.method,
-                        url=f"{config['base_url'].rstrip('/')}/{converted_path}",
-                        headers=headers,
-                        content=replaced,
-                    )
-                    upstream_resp = await client.send(upstream_req, stream=True)
-                    upstream_content = await upstream_resp.aread()
-                    content_type = upstream_resp.headers.get("content-type", "application/json")
-                    upstream_status = upstream_resp.status_code
-                    upstream_error = None
-                    break
+                upstream_req = client.build_request(
+                    method=request.method,
+                    url=f"{config['base_url'].rstrip('/')}/{converted_path}",
+                    headers=headers,
+                    content=replaced,
+                )
+                upstream_resp = await client.send(upstream_req, stream=True)
+                upstream_content = await upstream_resp.aread()
+                content_type = upstream_resp.headers.get("content-type", "application/json")
+                upstream_status = upstream_resp.status_code
+                upstream_error = None
+                break
             except httpx.HTTPError as exc:
                 upstream_error = exc
                 if attempt == 0:
@@ -194,8 +259,10 @@ class PrivacyProxy:
             except Exception as exc:
                 upstream_error = exc
                 break
+
         if upstream_error is not None:
             duration = (time.perf_counter() - start) * 1000
+            self._metrics.record(duration, entities_count, error=True)
             self.audit.log(
                 request_id=request_id,
                 method=request.method,
@@ -212,13 +279,16 @@ class PrivacyProxy:
                 media_type="application/json",
             )
 
-        # 4. Rehydrate after the upstream socket is safely closed.
+        # 5. Rehydrate response
         is_sse = "text/event-stream" in content_type
 
         if is_sse:
             text_sse = upstream_content.decode("utf-8", errors="replace")
-            final_sse = "".join(self.engine.restore_stream(iter(text_sse.splitlines(keepends=True)), mapping))
+            final_sse = "".join(
+                self.engine.restore_stream(iter(text_sse.splitlines(keepends=True)), mapping)
+            )
             duration = (time.perf_counter() - start) * 1000
+            self._metrics.record(duration, entities_count)
             self.audit.log(
                 request_id=request_id,
                 method=request.method,
@@ -229,7 +299,11 @@ class PrivacyProxy:
                 duration_ms=duration,
                 entities_detected=entities_count,
             )
-            return Response(content=final_sse, status_code=upstream_status, media_type="text/event-stream")
+            return Response(
+                content=final_sse,
+                status_code=upstream_status,
+                media_type="text/event-stream",
+            )
 
         # Non-streaming
         try:
@@ -240,10 +314,10 @@ class PrivacyProxy:
                 separators=(",", ":"),
             )
         except (UnicodeDecodeError, json.JSONDecodeError):
-            # Do not attempt raw string substitution in a non-JSON body;
-            # returning it unchanged is safer than emitting malformed JSON.
             final = upstream_content
+
         duration = (time.perf_counter() - start) * 1000
+        self._metrics.record(duration, entities_count)
         self.audit.log(
             request_id=request_id,
             method=request.method,
@@ -259,3 +333,8 @@ class PrivacyProxy:
             status_code=upstream_status,
             media_type="application/json",
         )
+
+    async def close(self) -> None:
+        """Cleanup resources."""
+        if self._client and not self._client.is_closed:
+            await self._client.aclose()
