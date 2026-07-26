@@ -1,4 +1,5 @@
 """Tests for stream rehydration."""
+
 import json
 
 from dv.privacy.rehydrator import Rehydrator

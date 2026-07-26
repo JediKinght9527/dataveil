@@ -1,4 +1,5 @@
 """MinIO sync backend."""
+
 from pathlib import Path
 from typing import Optional
 
@@ -83,9 +84,7 @@ class MinIOBackend(SyncBackend):
 
     def list_objects(self, prefix: str = "") -> list[str]:
         try:
-            objects = self.client.list_objects(
-                self.bucket, prefix=f"{self.prefix}{prefix}"
-            )
+            objects = self.client.list_objects(self.bucket, prefix=f"{self.prefix}{prefix}")
             return [obj.object_name for obj in objects]
         except Exception:
             return []

@@ -1,14 +1,12 @@
 """One-command setup for AI tools."""
+
 import json
-import os
 import shutil
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 import click
-
-from dv.config import load_config
 
 
 @dataclass
@@ -23,7 +21,7 @@ class ToolDetector:
     """Detect installed AI coding tools."""
 
     @staticmethod
-    def detect_all() -> List[ToolConfig]:
+    def detect_all() -> list[ToolConfig]:
         home = Path.home()
         tools = [
             ToolConfig(

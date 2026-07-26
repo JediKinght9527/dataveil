@@ -1,9 +1,9 @@
 """Enhanced code-aware detection rules."""
-import os
+
 import re
 import subprocess
 from pathlib import Path
-from typing import List, Optional
+from typing import Optional
 
 from dv.privacy.detector import SensitiveEntity
 from dv.privacy.rules.base import BaseRule
@@ -46,8 +46,8 @@ class CodeRule(BaseRule):
         re.IGNORECASE,
     )
 
-    def detect(self, text: str) -> List[SensitiveEntity]:
-        entities: List[SensitiveEntity] = []
+    def detect(self, text: str) -> list[SensitiveEntity]:
+        entities: list[SensitiveEntity] = []
 
         for m in self.ENV_KEY_PATTERN.finditer(text):
             entities.append(
@@ -142,8 +142,8 @@ class EnvFileRule(BaseRule):
         except OSError:
             pass
 
-    def detect(self, text: str) -> List[SensitiveEntity]:
-        entities: List[SensitiveEntity] = []
+    def detect(self, text: str) -> list[SensitiveEntity]:
+        entities: list[SensitiveEntity] = []
         for key in self._key_names:
             # Match the key name as a whole word
             pattern = re.compile(rf"\b{re.escape(key)}\b")
@@ -194,8 +194,8 @@ class GitRemoteRule(BaseRule):
         except Exception:
             pass
 
-    def detect(self, text: str) -> List[SensitiveEntity]:
-        entities: List[SensitiveEntity] = []
+    def detect(self, text: str) -> list[SensitiveEntity]:
+        entities: list[SensitiveEntity] = []
 
         for host in self._hosts:
             pattern = re.compile(rf"\b{re.escape(host)}\b", re.IGNORECASE)

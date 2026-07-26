@@ -1,10 +1,8 @@
 """Tests for configuration system."""
-import os
+
 from pathlib import Path
 
-import pytest
-
-from dv.config import Config, ConfigLoader, load_config
+from dv.config import ConfigLoader
 
 
 class TestConfigLoader:

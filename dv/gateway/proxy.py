@@ -1,4 +1,5 @@
 """Gateway proxy with inline privacy processing and performance optimizations."""
+
 from __future__ import annotations
 
 import json
@@ -139,7 +140,9 @@ class PrivacyProxy:
                 for msg in data["messages"]:
                     if msg.get("role") == "system":
                         data["system"] = msg["content"]
-                        data["messages"] = [m for m in data["messages"] if m.get("role") != "system"]
+                        data["messages"] = [
+                            m for m in data["messages"] if m.get("role") != "system"
+                        ]
                         break
             return json.dumps(data, ensure_ascii=False).encode("utf-8")
         except Exception:
@@ -164,7 +167,7 @@ class PrivacyProxy:
                 counters[entity.entity_type] = counters.get(entity.entity_type, 0) + 1
                 token = f"<{entity.entity_type.upper()}_{counters[entity.entity_type]}>"
                 mapping[token] = entity.text
-                redacted = redacted[:entity.start] + token + redacted[entity.end:]
+                redacted = redacted[: entity.start] + token + redacted[entity.end :]
             return redacted
 
         def walk(value: Any) -> Any:
@@ -236,7 +239,7 @@ class PrivacyProxy:
         upstream_content = b""
         content_type = "application/json"
         upstream_status = 502
-        upstream_error = None
+        upstream_error: Exception | None = None
 
         for attempt in range(2):
             try:
@@ -306,6 +309,7 @@ class PrivacyProxy:
             )
 
         # Non-streaming
+        final: str | bytes
         try:
             response_payload = json.loads(upstream_content.decode("utf-8"))
             final = json.dumps(

@@ -2,9 +2,10 @@
 Configuration system with layered priority:
   env vars > project .dataveilrc > ~/.dataveil/config.yaml > defaults
 """
+
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 import yaml
 from pydantic import BaseModel, Field
@@ -54,6 +55,7 @@ class PrivacyConfig(BaseModel):
 
 class Config(BaseModel):
     """Root configuration model."""
+
     gateway: GatewayConfig = Field(default_factory=GatewayConfig)
     vault: VaultConfig = Field(default_factory=VaultConfig)
     audit: AuditConfig = Field(default_factory=AuditConfig)
@@ -76,7 +78,7 @@ class ConfigLoader:
         self._project_root = project_root or Path.cwd()
 
         # Layer 1: defaults
-        data: Dict[str, Any] = {}
+        data: dict[str, Any] = {}
 
         # Layer 2: global config file
         global_data = self._load_yaml(self.DEFAULT_CONFIG_PATH)
@@ -98,7 +100,7 @@ class ConfigLoader:
         self._config = Config(**data)
         return self._config
 
-    def _load_yaml(self, path: Path) -> Dict[str, Any]:
+    def _load_yaml(self, path: Path) -> dict[str, Any]:
         if not path.exists():
             return {}
         try:
@@ -119,10 +121,9 @@ class ConfigLoader:
                     return candidate
         return None
 
-    def _load_env(self) -> Dict[str, Any]:
+    def _load_env(self) -> dict[str, Any]:
         """Load config from DV_* environment variables."""
-        data: Dict[str, Any] = {}
-        prefix = "DV_"
+        data: dict[str, Any] = {}
 
         # Map env vars to nested config paths
         env_map = {
@@ -144,17 +145,18 @@ class ConfigLoader:
                 if section not in data:
                     data[section] = {}
                 # Type coercion
+                coerced: Any = value
                 if key in ("port", "interval_seconds", "retention_days", "auto_lock_minutes"):
-                    value = int(value)
+                    coerced = int(value)
                 elif key in ("enabled", "encrypt", "sync_to_oss", "scrub_sensitive"):
-                    value = value.lower() in ("1", "true", "yes", "on")
+                    coerced = value.lower() in ("1", "true", "yes", "on")
                 elif key == "confidence_threshold":
-                    value = float(value)
-                data[section][key] = value
+                    coerced = float(value)
+                data[section][key] = coerced
 
         return data
 
-    def _deep_merge(self, base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
+    def _deep_merge(self, base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
         """Recursively merge two dicts."""
         result = base.copy()
         for key, value in override.items():

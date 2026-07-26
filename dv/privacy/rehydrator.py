@@ -1,7 +1,9 @@
 """Stream rehydration: restore original data from placeholders."""
+
 import json
 import re
 from collections.abc import Iterator
+from typing import Optional
 
 
 class Rehydrator:
@@ -12,10 +14,9 @@ class Rehydrator:
         mapping: {<EMAIL_1>: "marco@example.com", ...}
         """
         self.mapping = mapping
-        if mapping:
-            self._pattern = re.compile("|".join(re.escape(k) for k in mapping))
-        else:
-            self._pattern = None
+        self._pattern: Optional[re.Pattern[str]] = (
+            re.compile("|".join(re.escape(k) for k in mapping)) if mapping else None
+        )
 
     def rehydrate_text(self, text: str) -> str:
         if not self._pattern:

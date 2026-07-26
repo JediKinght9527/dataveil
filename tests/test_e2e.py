@@ -1,16 +1,15 @@
 """End-to-end integration tests with mock LLM upstream."""
+
 import json
 
 import httpx
 import pytest
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse, StreamingResponse
-from fastapi.testclient import TestClient
 
 from dv.audit.logger import AuditLogger
 from dv.gateway.proxy import PrivacyProxy
 from dv.vault.store import VaultStore
-
 
 # Mock LLM upstream server
 mock_upstream = FastAPI()
@@ -20,34 +19,41 @@ mock_upstream = FastAPI()
 async def mock_messages(request: dict):
     """Mock Anthropic messages endpoint."""
     content = request["messages"][0]["content"]
-    return JSONResponse({
-        "id": "msg_test",
-        "type": "message",
-        "role": "assistant",
-        "content": [{"type": "text", "text": f"Echo: {content}"}],
-        "model": request.get("model", "test"),
-        "stop_reason": "end_turn",
-    })
+    return JSONResponse(
+        {
+            "id": "msg_test",
+            "type": "message",
+            "role": "assistant",
+            "content": [{"type": "text", "text": f"Echo: {content}"}],
+            "model": request.get("model", "test"),
+            "stop_reason": "end_turn",
+        }
+    )
 
 
 @mock_upstream.post("/v1/chat/completions")
 async def mock_chat_completions(request: dict):
     """Mock OpenAI chat completions endpoint."""
     content = request["messages"][0]["content"]
-    return JSONResponse({
-        "id": "chatcmpl_test",
-        "object": "chat.completion",
-        "choices": [{
-            "index": 0,
-            "message": {"role": "assistant", "content": f"Echo: {content}"},
-            "finish_reason": "stop",
-        }],
-    })
+    return JSONResponse(
+        {
+            "id": "chatcmpl_test",
+            "object": "chat.completion",
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {"role": "assistant", "content": f"Echo: {content}"},
+                    "finish_reason": "stop",
+                }
+            ],
+        }
+    )
 
 
 @mock_upstream.post("/v1/messages/stream")
 async def mock_messages_stream():
     """Mock SSE streaming endpoint."""
+
     async def event_stream():
         chunks = [
             {"type": "content_block_delta", "delta": {"text": "Hello"}},
@@ -71,6 +77,7 @@ class TestE2E:
     @pytest.mark.asyncio
     async def test_full_chain_redaction_and_rehydration(self, proxy, monkeypatch):
         """Test complete flow: request → redact → forward → rehydrate → response."""
+
         # Mock the upstream call
         class MockClient:
             async def __aenter__(self):
@@ -105,10 +112,12 @@ class TestE2E:
         async def receive():
             return {
                 "type": "http.request",
-                "body": json.dumps({
-                    "model": "kimi-k2.6",
-                    "messages": [{"role": "user", "content": "Email me at marco@example.com"}],
-                }).encode(),
+                "body": json.dumps(
+                    {
+                        "model": "kimi-k2.6",
+                        "messages": [{"role": "user", "content": "Email me at marco@example.com"}],
+                    }
+                ).encode(),
                 "more_body": False,
             }
 
@@ -156,11 +165,13 @@ class TestE2E:
         async def receive():
             return {
                 "type": "http.request",
-                "body": json.dumps({
-                    "model": "kimi-k2.6",
-                    "messages": [{"role": "user", "content": "hello"}],
-                    "max_tokens": 100,
-                }).encode(),
+                "body": json.dumps(
+                    {
+                        "model": "kimi-k2.6",
+                        "messages": [{"role": "user", "content": "hello"}],
+                        "max_tokens": 100,
+                    }
+                ).encode(),
                 "more_body": False,
             }
 
@@ -204,15 +215,21 @@ class TestE2E:
             async def receive():
                 return {
                     "type": "http.request",
-                    "body": json.dumps({
-                        "model": "test",
-                        "messages": [{"role": "user", "content": content}],
-                    }).encode(),
+                    "body": json.dumps(
+                        {
+                            "model": "test",
+                            "messages": [{"role": "user", "content": content}],
+                        }
+                    ).encode(),
                     "more_body": False,
                 }
 
             return Request(
-                {"type": "http", "method": "POST", "headers": [(b"content-type", b"application/json")]},
+                {
+                    "type": "http",
+                    "method": "POST",
+                    "headers": [(b"content-type", b"application/json")],
+                },
                 receive=receive,
             )
 
@@ -225,9 +242,7 @@ class TestE2E:
 
         requests = [await make_request(c) for c in request_contents]
 
-        responses = await asyncio.gather(*[
-            proxy.handle(req, "v1/messages") for req in requests
-        ])
+        responses = await asyncio.gather(*[proxy.handle(req, "v1/messages") for req in requests])
 
         assert all(r.status_code == 200 for r in responses)
 

@@ -1,6 +1,7 @@
 """In-memory sync backend for testing and local development."""
+
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Optional
 
 from dv.sync.base import SyncBackend
 
@@ -9,7 +10,7 @@ class MemoryBackend(SyncBackend):
     """Store objects in memory (useful for testing)."""
 
     def __init__(self):
-        self._store: Dict[str, bytes] = {}
+        self._store: dict[str, bytes] = {}
 
     def upload(self, local_path: Path, remote_key: str) -> bool:
         try:
@@ -37,4 +38,4 @@ class MemoryBackend(SyncBackend):
         return remote_key in self._store
 
     def list_objects(self, prefix: str = "") -> list[str]:
-        return [k for k in self._store.keys() if k.startswith(prefix)]
+        return [k for k in self._store if k.startswith(prefix)]

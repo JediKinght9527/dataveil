@@ -1,4 +1,5 @@
 """Semantic placeholder generation."""
+
 from __future__ import annotations
 
 

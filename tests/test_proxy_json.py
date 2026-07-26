@@ -1,4 +1,5 @@
 """Regression tests for JSON-safe gateway transformations."""
+
 import json
 
 import httpx
@@ -10,9 +11,7 @@ from dv.gateway.proxy import PrivacyProxy
 def test_redaction_keeps_json_valid_near_escaped_content():
     proxy = object.__new__(PrivacyProxy)
     proxy.engine = __import__("dv.privacy.engine", fromlist=["PrivacyEngine"]).PrivacyEngine()
-    body = json.dumps(
-        {"messages": [{"content": r"literal \\ and marco@example.com"}]}
-    ).encode()
+    body = json.dumps({"messages": [{"content": r"literal \\ and marco@example.com"}]}).encode()
 
     redacted, mapping = proxy._redact_json_body(body)
 
@@ -48,16 +47,26 @@ async def test_proxy_retries_transient_upstream_read_error(monkeypatch):
     monkeypatch.setattr(proxy_module.httpx, "AsyncClient", lambda **_kwargs: Client())
     proxy = object.__new__(PrivacyProxy)
     proxy.engine = __import__("dv.privacy.engine", fromlist=["PrivacyEngine"]).PrivacyEngine()
-    proxy.vault = type("Vault", (), {"get_key": lambda *_: {"api_key": "test", "base_url": "https://example.test", "provider": "test"}})()
+    fake_config = {"api_key": "test", "base_url": "https://example.test", "provider": "test"}
+    proxy.vault = type("Vault", (), {"get_key": lambda *_: fake_config})()
     proxy.audit = type("Audit", (), {"log": lambda *_args, **_kwargs: None})()
     proxy.profile = "test"
 
     from starlette.requests import Request
 
     async def receive():
-        return {"type": "http.request", "body": json.dumps({"messages": [{"content": "hello"}]}).encode(), "more_body": False}
+        body = json.dumps({"messages": [{"content": "hello"}]}).encode()
+        return {"type": "http.request", "body": body, "more_body": False}
 
-    request = Request({"type": "http", "method": "POST", "headers": [(b"content-type", b"application/json")], "path": "/v1/messages"}, receive=receive)
+    request = Request(
+        {
+            "type": "http",
+            "method": "POST",
+            "headers": [(b"content-type", b"application/json")],
+            "path": "/v1/messages",
+        },
+        receive=receive,
+    )
     response = await proxy.handle(request, "v1/messages")
     assert response.status_code == 200
     assert Client.calls == 2

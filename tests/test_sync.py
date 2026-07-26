@@ -1,5 +1,5 @@
 """Tests for sync engine."""
-import time
+
 from pathlib import Path
 
 import pytest

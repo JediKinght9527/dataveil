@@ -1,4 +1,5 @@
 """CLI entry point with Click."""
+
 import click
 
 

@@ -1,4 +1,5 @@
 """Tests for Privacy Engine detection and tokenization."""
+
 from dv.privacy.detector import Detector
 from dv.privacy.engine import PrivacyEngine
 from dv.privacy.tokenizer import Tokenizer

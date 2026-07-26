@@ -1,4 +1,5 @@
 """Auto-detect project info from git remotes."""
+
 import re
 import subprocess
 

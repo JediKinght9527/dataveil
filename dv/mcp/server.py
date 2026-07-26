@@ -1,4 +1,5 @@
 """MCP Server for native Claude Code integration."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -18,7 +19,9 @@ class DataVeilMCPServer:
         return [
             {
                 "name": "privacy_scan",
-                "description": "Scan text for sensitive entities (PII, API keys, internal domains, etc.)",
+                "description": (
+                    "Scan text for sensitive entities (PII, API keys, internal domains, etc.)"
+                ),
                 "inputSchema": {
                     "type": "object",
                     "properties": {
@@ -32,7 +35,9 @@ class DataVeilMCPServer:
             },
             {
                 "name": "privacy_redact",
-                "description": "Redact sensitive entities from text, replacing them with semantic placeholders",
+                "description": (
+                    "Redact sensitive entities from text, replacing them with semantic placeholders"
+                ),
                 "inputSchema": {
                     "type": "object",
                     "properties": {
@@ -46,7 +51,9 @@ class DataVeilMCPServer:
             },
             {
                 "name": "vault_status",
-                "description": "Check DataVeil vault status, list profiles, and verify connectivity",
+                "description": (
+                    "Check DataVeil vault status, list profiles, and verify connectivity"
+                ),
                 "inputSchema": {
                     "type": "object",
                     "properties": {},
@@ -59,7 +66,10 @@ class DataVeilMCPServer:
                     "type": "object",
                     "properties": {
                         "profile": {"type": "string", "description": "Profile name"},
-                        "provider": {"type": "string", "description": "Provider (kimi/openai/anthropic)"},
+                        "provider": {
+                            "type": "string",
+                            "description": "Provider (kimi/openai/anthropic)",
+                        },
                         "base_url": {"type": "string", "description": "API base URL"},
                         "api_key": {"type": "string", "description": "API key to encrypt"},
                     },
@@ -137,17 +147,20 @@ class MCPProtocolHandler:
     def __init__(self, server: DataVeilMCPServer):
         self.server = server
 
-    def handle_message(self, message: dict) -> dict:
+    def handle_message(self, message: dict) -> dict | None:
         method = message.get("method", "")
         msg_id = message.get("id")
         params = message.get("params", {})
 
         if method == "initialize":
-            return self._result(msg_id, {
-                "protocolVersion": "2024-11-05",
-                "capabilities": {"tools": {}},
-                "serverInfo": {"name": "dataveil", "version": "0.1.0"},
-            })
+            return self._result(
+                msg_id,
+                {
+                    "protocolVersion": "2024-11-05",
+                    "capabilities": {"tools": {}},
+                    "serverInfo": {"name": "dataveil", "version": "0.1.0"},
+                },
+            )
         if method == "tools/list":
             return self._result(msg_id, {"tools": self.server.tools()})
         if method == "tools/call":

@@ -1,9 +1,8 @@
 """Tests for enhanced code-aware rules."""
+
 from pathlib import Path
 
-import pytest
-
-from dv.privacy.rules.code import CodeRule, EnvFileRule, GitRemoteRule
+from dv.privacy.rules.code import CodeRule, EnvFileRule
 from dv.privacy.rules.custom import CustomRuleEngine
 
 
@@ -22,7 +21,11 @@ class TestCodeRule:
 
     def test_detect_jwt(self):
         rule = CodeRule()
-        jwt = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"
+        jwt = (
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9."
+            "eyJzdWIiOiIxMjM0NTY3ODkwIn0."
+            "dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"
+        )
         entities = rule.detect(f"Token: {jwt}")
         assert len(entities) == 1
         assert entities[0].entity_type == "jwt_token"
@@ -74,11 +77,13 @@ rules:
     def test_add_rule(self, tmp_path: Path):
         rules_file = tmp_path / "rules.yaml"
         engine = CustomRuleEngine(rules_path=rules_file)
-        engine.add_rule({
-            "name": "test-rule",
-            "pattern": r"\btest\d+\b",
-            "entity_type": "test_pattern",
-            "confidence": 0.8,
-        })
+        engine.add_rule(
+            {
+                "name": "test-rule",
+                "pattern": r"\btest\d+\b",
+                "entity_type": "test_pattern",
+                "confidence": 0.8,
+            }
+        )
         entities = engine.detect("This is test123 and test456")
         assert len(entities) == 2

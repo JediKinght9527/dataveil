@@ -1,13 +1,12 @@
 """Tests for Gateway proxy (requires running server)."""
-import pytest
-from fastapi.testclient import TestClient
+
 from pathlib import Path
 
-from dv.gateway.server import app
-from dv.gateway.proxy import PrivacyProxy
-from dv.vault.store import VaultStore
-from dv.audit.logger import AuditLogger
+import pytest
+from fastapi.testclient import TestClient
+
 import dv.gateway.server as server_module
+from dv.gateway.server import app
 
 
 @pytest.fixture

@@ -1,4 +1,5 @@
 """Request middleware (auth, CORS, request ID)."""
+
 from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 

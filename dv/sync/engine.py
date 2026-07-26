@@ -1,10 +1,11 @@
 """OSS sync engine with client-side encryption."""
+
 import hashlib
 import json
 import time
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Optional
 
 from dv.vault.crypto import VaultCrypto
 
@@ -12,12 +13,9 @@ from dv.vault.crypto import VaultCrypto
 @dataclass
 class SyncState:
     """Track sync state for incremental uploads."""
-    last_sync: float = 0.0
-    file_hashes: Dict[str, str] = None  # path -> sha256
 
-    def __post_init__(self):
-        if self.file_hashes is None:
-            self.file_hashes = {}
+    last_sync: float = 0.0
+    file_hashes: dict[str, str] = field(default_factory=dict)  # path -> sha256
 
 
 class SyncEngine:
@@ -114,13 +112,15 @@ class SyncEngine:
         self._save_state()
         return True
 
-    def get_sync_status(self) -> Dict[str, Any]:
+    def get_sync_status(self) -> dict[str, Any]:
         """Get current sync status."""
         return {
             "last_sync": self.state.last_sync,
             "last_sync_human": time.strftime(
                 "%Y-%m-%d %H:%M:%S", time.localtime(self.state.last_sync)
-            ) if self.state.last_sync else "never",
+            )
+            if self.state.last_sync
+            else "never",
             "tracked_files": len(self.state.file_hashes),
             "backend": self.backend.__class__.__name__,
         }

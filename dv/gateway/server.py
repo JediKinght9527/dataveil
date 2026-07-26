@@ -1,4 +1,5 @@
 """FastAPI server with catch-all route, health check, and metrics."""
+
 from __future__ import annotations
 
 from fastapi import FastAPI, Request

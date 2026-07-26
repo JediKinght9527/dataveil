@@ -1,6 +1,7 @@
 """
 Encrypted key vault backed by SQLite.
 """
+
 from __future__ import annotations
 
 import sqlite3
@@ -42,9 +43,7 @@ class VaultStore:
                 """
             )
 
-    def add_key(
-        self, profile: str, provider: str, base_url: str, api_key: str
-    ) -> None:
+    def add_key(self, profile: str, provider: str, base_url: str, api_key: str) -> None:
         blob = VaultCrypto.encrypt(api_key.encode(), self.password)
         with sqlite3.connect(self.db_path) as conn:
             conn.execute(

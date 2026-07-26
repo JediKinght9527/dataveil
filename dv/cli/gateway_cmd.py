@@ -1,4 +1,5 @@
 """Gateway control commands: dv start / stop / status."""
+
 from __future__ import annotations
 
 import click

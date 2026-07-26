@@ -1,6 +1,7 @@
 """Custom rule engine with YAML DSL support."""
+
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Optional
 
 import yaml
 
@@ -11,17 +12,17 @@ from dv.privacy.rules.base import BaseRule
 class CustomRule(BaseRule):
     """User-defined rule from YAML DSL."""
 
-    def __init__(self, rule_def: Dict[str, Any]):
+    def __init__(self, rule_def: dict[str, Any]):
         self.name = rule_def.get("name", "custom")
         self._pattern = rule_def.get("pattern", "")
         self._entity_type = rule_def.get("entity_type", "custom")
         self._confidence = rule_def.get("confidence", 0.80)
         self._description = rule_def.get("description", "")
 
-    def detect(self, text: str) -> List[SensitiveEntity]:
+    def detect(self, text: str) -> list[SensitiveEntity]:
         import re
 
-        entities: List[SensitiveEntity] = []
+        entities: list[SensitiveEntity] = []
         try:
             pattern = re.compile(self._pattern, re.IGNORECASE)
             for m in pattern.finditer(text):
@@ -44,7 +45,7 @@ class CustomRuleEngine:
 
     def __init__(self, rules_path: Optional[Path] = None):
         self.rules_path = rules_path or Path.home() / ".dataveil" / "rules.yaml"
-        self._rules: List[CustomRule] = []
+        self._rules: list[CustomRule] = []
         self._load_rules()
 
     def _load_rules(self) -> None:
@@ -58,13 +59,13 @@ class CustomRuleEngine:
         except Exception:
             pass
 
-    def detect(self, text: str) -> List[SensitiveEntity]:
-        entities: List[SensitiveEntity] = []
+    def detect(self, text: str) -> list[SensitiveEntity]:
+        entities: list[SensitiveEntity] = []
         for rule in self._rules:
             entities.extend(rule.detect(text))
         return entities
 
-    def add_rule(self, rule_def: Dict[str, Any]) -> None:
+    def add_rule(self, rule_def: dict[str, Any]) -> None:
         """Add a new rule and persist to file."""
         self._rules.append(CustomRule(rule_def))
         self._save_rules()
@@ -75,7 +76,7 @@ class CustomRuleEngine:
         with open(self.rules_path, "w", encoding="utf-8") as f:
             yaml.dump(data, f, default_flow_style=False, allow_unicode=True)
 
-    def list_rules(self) -> List[Dict[str, Any]]:
+    def list_rules(self) -> list[dict[str, Any]]:
         return [
             {
                 "name": r.name,

@@ -1,4 +1,5 @@
 """Vault management commands: dv vault add/list/rm."""
+
 import click
 
 from dv.config import load_config

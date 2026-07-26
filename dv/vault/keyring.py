@@ -1,4 +1,5 @@
 """System keychain integration (macOS/Windows/Linux)."""
+
 from typing import Optional
 
 
@@ -12,9 +13,7 @@ def get_keychain_password(service: str = "dataveil", account: str = "vault") -> 
         return None
 
 
-def set_keychain_password(
-    password: str, service: str = "dataveil", account: str = "vault"
-) -> bool:
+def set_keychain_password(password: str, service: str = "dataveil", account: str = "vault") -> bool:
     """Store vault password in system keychain."""
     try:
         import keyring  # type: ignore[import-untyped]

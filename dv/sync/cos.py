@@ -1,4 +1,5 @@
 """Tencent COS sync backend."""
+
 from pathlib import Path
 from typing import Optional
 

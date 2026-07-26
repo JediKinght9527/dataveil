@@ -1,4 +1,5 @@
 """AWS S3 sync backend."""
+
 from pathlib import Path
 from typing import Optional
 

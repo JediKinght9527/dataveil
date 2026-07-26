@@ -1,4 +1,5 @@
 """MCP Server stdio entry point."""
+
 import json
 import sys
 

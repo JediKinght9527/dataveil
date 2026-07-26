@@ -1,8 +1,8 @@
 """Tests for dv init command."""
+
 import json
 from pathlib import Path
 
-import pytest
 from click.testing import CliRunner
 
 from dv.cli.init_cmd import ClaudeCodeConfigurator, ToolDetector, init
@@ -25,13 +25,17 @@ class TestToolDetector:
 class TestClaudeCodeConfigurator:
     def test_configure_dry_run(self, tmp_path: Path):
         config_path = tmp_path / "settings.json"
-        config_path.write_text(json.dumps({
-            "env": {
-                "ANTHROPIC_BASE_URL": "https://api.moonshot.cn/anthropic",
-                "ANTHROPIC_AUTH_TOKEN": "sk-test",
-                "ANTHROPIC_MODEL": "kimi-k2.6",
-            }
-        }))
+        config_path.write_text(
+            json.dumps(
+                {
+                    "env": {
+                        "ANTHROPIC_BASE_URL": "https://api.moonshot.cn/anthropic",
+                        "ANTHROPIC_AUTH_TOKEN": "sk-test",
+                        "ANTHROPIC_MODEL": "kimi-k2.6",
+                    }
+                }
+            )
+        )
 
         configurator = ClaudeCodeConfigurator("http://127.0.0.1:8787")
         result = configurator.configure(config_path, dry_run=True)
@@ -45,12 +49,16 @@ class TestClaudeCodeConfigurator:
 
     def test_configure_applies_changes(self, tmp_path: Path):
         config_path = tmp_path / "settings.json"
-        config_path.write_text(json.dumps({
-            "env": {
-                "ANTHROPIC_BASE_URL": "https://api.moonshot.cn/anthropic",
-                "ANTHROPIC_AUTH_TOKEN": "sk-test",
-            }
-        }))
+        config_path.write_text(
+            json.dumps(
+                {
+                    "env": {
+                        "ANTHROPIC_BASE_URL": "https://api.moonshot.cn/anthropic",
+                        "ANTHROPIC_AUTH_TOKEN": "sk-test",
+                    }
+                }
+            )
+        )
 
         configurator = ClaudeCodeConfigurator("http://127.0.0.1:8787")
         result = configurator.configure(config_path, dry_run=False)

@@ -1,10 +1,11 @@
 """Audit logging with rotation, scrubbing, and query support."""
+
 import json
 import re
-import time
-from datetime import datetime, timezone, timedelta
+from collections.abc import Iterator
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterator, List, Optional
+from typing import Any, Optional
 
 
 class AuditLogger:
@@ -49,7 +50,7 @@ class AuditLogger:
             except (ValueError, IndexError):
                 continue
 
-    def _scrub(self, data: Dict[str, Any]) -> Dict[str, Any]:
+    def _scrub(self, data: dict[str, Any]) -> dict[str, Any]:
         """Remove or hash sensitive fields from log entry."""
         if not self.scrub_sensitive:
             return data
@@ -77,14 +78,14 @@ class AuditLogger:
         duration_ms: float,
         entities_detected: int = 0,
         error: Optional[str] = None,
-        extra: Optional[Dict[str, Any]] = None,
+        extra: Optional[dict[str, Any]] = None,
     ) -> None:
         if not self.enabled:
             return
 
         self._rotate_if_needed()
 
-        entry: Dict[str, Any] = {
+        entry: dict[str, Any] = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "request_id": request_id,
             "method": method,
@@ -114,9 +115,9 @@ class AuditLogger:
         status_code: Optional[int] = None,
         profile: Optional[str] = None,
         limit: int = 100,
-    ) -> List[Dict[str, Any]]:
+    ) -> list[dict[str, Any]]:
         """Query audit logs with filters."""
-        results: List[Dict[str, Any]] = []
+        results: list[dict[str, Any]] = []
 
         for entry in self._iter_entries():
             if start_time and entry.get("timestamp", "") < start_time.isoformat():
@@ -133,7 +134,7 @@ class AuditLogger:
 
         return results
 
-    def _iter_entries(self) -> Iterator[Dict[str, Any]]:
+    def _iter_entries(self) -> Iterator[dict[str, Any]]:
         """Iterate over all log entries, newest first."""
         log_files = sorted(
             self.log_path.parent.glob(f"{self.log_path.stem}.*{self.log_path.suffix}"),

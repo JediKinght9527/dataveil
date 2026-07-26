@@ -1,4 +1,5 @@
 """Configuration commands (future)."""
+
 import click
 
 

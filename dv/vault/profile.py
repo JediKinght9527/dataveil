@@ -1,4 +1,5 @@
 """Multi-profile key management."""
+
 from dataclasses import dataclass
 
 

@@ -1,4 +1,5 @@
 """Tests for Vault encryption and storage."""
+
 import pytest
 from cryptography.exceptions import InvalidTag
 
