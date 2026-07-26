@@ -37,3 +37,5 @@ venv/
 
 # Hatch
 .hatch/
+.venv/
+coverage.xml

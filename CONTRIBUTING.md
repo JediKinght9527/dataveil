@@ -10,7 +10,7 @@ By participating in this project, you agree to maintain a respectful and inclusi
 
 ### Reporting Bugs
 
-- Check if the bug has already been reported in [Issues](https://github.com/yourname/dataveil/issues)
+- Check if the bug has already been reported in [Issues](https://github.com/JediKinght9527/dataveil/issues)
 - Use the bug report template when creating a new issue
 - Include: OS, Python version, DataVeil version, steps to reproduce, expected vs actual behavior
 
@@ -37,7 +37,7 @@ By participating in this project, you agree to maintain a respectful and inclusi
 
 ```bash
 # Clone your fork
-git clone https://github.com/yourname/dataveil.git
+git clone https://github.com/JediKinght9527/dataveil.git
 cd dataveil
 
 # Create virtual environment
@@ -78,7 +78,7 @@ ruff check dv/ tests/
 
 ### Questions?
 
-- Open a [Discussion](https://github.com/yourname/dataveil/discussions)
+- Open a [Discussion](https://github.com/JediKinght9527/dataveil/discussions)
 - Email: maintainers@dataveil.dev
 
 Thank you for contributing! 🎉

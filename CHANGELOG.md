@@ -30,4 +30,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Client-side encryption before OSS upload
 - Audit log scrubbing to prevent secondary leakage
 
-[0.1.0]: https://github.com/yourname/dataveil/releases/tag/v0.1.0
+[0.1.0]: https://github.com/JediKinght9527/dataveil/releases/tag/v0.1.0

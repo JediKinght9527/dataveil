@@ -1,14 +1,10 @@
 # DataVeil
 
-[![CI](https://github.com/yourname/dataveil/workflows/CI/badge.svg)](https://github.com/yourname/dataveil/actions)
-[![Coverage](https://codecov.io/gh/yourname/dataveil/branch/main/graph/badge.svg)](https://codecov.io/gh/yourname/dataveil)
-[![PyPI version](https://badge.fury.io/py/dataveil.svg)](https://badge.fury.io/py/dataveil)
+[![CI](https://github.com/JediKinght9527/dataveil/actions/workflows/ci.yml/badge.svg)](https://github.com/JediKinght9527/dataveil/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 
 **Privacy-first local gateway for LLM APIs.** Protect your sensitive data before it leaves your machine.
-
-![DataVeil Demo](docs/images/demo.gif)
 
 ## Why DataVeil?
 
@@ -37,8 +33,18 @@ Every time you paste code into Claude Code, Cursor, or ChatGPT, you might be lea
 ### Installation
 
 ```bash
-pip install dataveil
+pip install git+https://github.com/JediKinght9527/dataveil.git
 ```
+
+Or from source:
+
+```bash
+git clone https://github.com/JediKinght9527/dataveil.git
+cd dataveil
+pip install -e .
+```
+
+> PyPI package coming soon — for now, install from GitHub.
 
 ### One-Command Setup
 
