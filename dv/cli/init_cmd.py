@@ -123,7 +123,11 @@ class ClaudeCodeConfigurator:
 @click.option("--dry-run", is_flag=True, help="Preview changes without applying")
 @click.option("--tool", type=click.Choice(["claude-code", "cursor", "codex", "all"]), default="all")
 def init(gateway_url: str, dry_run: bool, tool: str):
-    """One-command setup for AI tools to use DataVeil gateway."""
+    """Configure Claude Code to use the DataVeil gateway.
+
+    Currently only Claude Code is configured automatically. Cursor and Codex
+    are detected but must be configured manually (see README).
+    """
     click.echo("🔍 Detecting installed AI tools...")
 
     detector = ToolDetector()
@@ -132,7 +136,8 @@ def init(gateway_url: str, dry_run: bool, tool: str):
 
     if not detected:
         click.echo("⚠️  No supported AI tools detected.")
-        click.echo("   Supported: Claude Code, Cursor, Codex CLI")
+        click.echo("   Auto-configurable: Claude Code")
+        click.echo("   Detect-only (manual setup): Cursor, Codex CLI")
         return
 
     click.echo(f"   Found: {', '.join(t.name for t in detected)}")
@@ -141,10 +146,23 @@ def init(gateway_url: str, dry_run: bool, tool: str):
     if tool != "all":
         detected = [t for t in detected if t.name == tool]
 
-    # Backup
+    # Only Claude Code is auto-configured today. Be explicit about the rest
+    # instead of pretending to handle them.
+    configurable = [t for t in detected if t.name == "claude-code"]
+    manual_only = [t for t in detected if t.name != "claude-code"]
+
+    for t in manual_only:
+        click.echo(f"   ℹ️  {t.name}: detected, but auto-config is not implemented yet.")
+        click.echo("      See README 'Manual Setup' for the two-line config change.")
+
+    if not configurable:
+        click.echo("\nNothing to configure automatically. Exiting without changes.")
+        return
+
+    # Backup only the files we are about to modify
     if not dry_run:
         click.echo("\n📦 Creating backups...")
-        for t in detected:
+        for t in configurable:
             backup = ConfigBackup.backup(t)
             t.backup_path = backup
             click.echo(f"   {t.name}: {backup}")
@@ -152,19 +170,16 @@ def init(gateway_url: str, dry_run: bool, tool: str):
     # Configure
     click.echo("\n⚙️  Configuring tools...")
 
-    for t in detected:
-        if t.name == "claude-code":
-            configurator = ClaudeCodeConfigurator(gateway_url)
-            result = configurator.configure(t.config_path, dry_run=dry_run)
+    for t in configurable:
+        configurator = ClaudeCodeConfigurator(gateway_url)
+        result = configurator.configure(t.config_path, dry_run=dry_run)
 
-            if result["status"] == "skipped":
-                click.echo(f"   ⏭️  {t.name}: {result['reason']}")
-            else:
-                click.echo(f"   ✅ {t.name}: {len(result['changes'])} changes")
-                for change in result["changes"]:
-                    click.echo(f"      • {change}")
+        if result["status"] == "skipped":
+            click.echo(f"   ⏭️  {t.name}: {result['reason']}")
         else:
-            click.echo(f"   ⏭️  {t.name}: not yet supported (coming soon)")
+            click.echo(f"   ✅ {t.name}: {len(result['changes'])} changes")
+            for change in result["changes"]:
+                click.echo(f"      • {change}")
 
     # Generate restore script
     if not dry_run:
@@ -174,7 +189,7 @@ def init(gateway_url: str, dry_run: bool, tool: str):
         with open(restore_script, "w", encoding="utf-8") as f:
             f.write("#!/bin/bash\n")
             f.write("# Restore original tool configurations\n")
-            for t in detected:
+            for t in configurable:
                 if t.backup_path:
                     f.write(f"cp '{t.backup_path}' '{t.config_path}'\n")
             f.write("echo '✅ Original configurations restored'\n")
@@ -186,7 +201,7 @@ def init(gateway_url: str, dry_run: bool, tool: str):
     click.echo("\n🎉 Setup complete!")
     click.echo(f"   Gateway: {gateway_url}")
     click.echo("   Start gateway: dv start")
-    click.echo("   Your tools will now route through DataVeil.")
+    click.echo("   Claude Code will now route through DataVeil.")
 
     if dry_run:
         click.echo("\n⚠️  This was a dry run. No changes were applied.")

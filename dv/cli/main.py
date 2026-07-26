@@ -4,7 +4,7 @@ import click
 
 
 @click.group()
-@click.version_option(version="0.1.0", prog_name="dv")
+@click.version_option(version="0.2.0", prog_name="dv")
 def cli():
     """DataVeil — Privacy-first local gateway for LLM APIs."""
     pass

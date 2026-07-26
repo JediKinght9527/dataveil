@@ -75,4 +75,6 @@ class TestInitCommand:
         runner = CliRunner()
         result = runner.invoke(init, ["--help"])
         assert result.exit_code == 0
-        assert "One-command setup" in result.output
+        assert "Configure Claude Code" in result.output
+        # Honest about scope: other tools are manual-setup-only
+        assert "manually" in result.output

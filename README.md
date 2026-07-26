@@ -4,7 +4,10 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.9+](https://img.shields.io/badge/python-3.9+-blue.svg)](https://www.python.org/downloads/)
 
-**Privacy-first local gateway for LLM APIs.** Protect your sensitive data before it leaves your machine.
+**Privacy-first local gateway for LLM APIs.** Reduce what your AI tools leak before requests leave your machine.
+
+> ⚠️ **Early-stage software (v0.2.x).** No third-party security audit yet.
+> Read [SECURITY.md](SECURITY.md) before using with company code or customer data.
 
 ## Why DataVeil?
 
@@ -15,7 +18,7 @@ Every time you paste code into Claude Code, Cursor, or ChatGPT, you might be lea
 - SQL connection strings (`mysql://user:pass@host/db`)
 - SSH private keys and JWT tokens
 
-**DataVeil sits between your AI tools and LLM providers**, automatically detecting and replacing sensitive data with semantic placeholders — so your secrets never leave your machine.
+**DataVeil sits between your AI tools and LLM providers**, detecting and replacing known-sensitive patterns with semantic placeholders before requests go upstream. Detection is rule-based — it meaningfully reduces accidental leakage, but is not a guarantee (see [Security & Limitations](#security--limitations)).
 
 ## Features
 
@@ -24,8 +27,8 @@ Every time you paste code into Claude Code, Cursor, or ChatGPT, you might be lea
 - 💬 **Context-Preserving**: Replaces secrets with semantic placeholders (`<INTERNAL_DOMAIN_1>`, `<API_KEY_1>`) so LLMs still understand your code.
 - 🌊 **Stream Rehydration**: Real-time restoration of original data in SSE streaming responses.
 - 🔌 **Multi-Provider**: Works with Kimi, OpenAI, Anthropic, Azure OpenAI via a single local endpoint.
-- 📊 **Audit Logging**: Request-level logs with daily rotation and optional OSS sync for compliance.
-- 🛠️ **Plugin-First**: Claude Code skill, MCP server, VS Code extension (coming soon).
+- 📊 **Audit Logging (opt-in, off by default)**: Request-level logs with daily rotation and scrubbing.
+- 🛠️ **Plugin-First**: `dv init` for Claude Code, MCP server; VS Code extension planned.
 - ⚙️ **Custom Rules**: Define your own detection patterns with YAML DSL.
 
 ## Quick Start
@@ -46,18 +49,18 @@ pip install -e .
 
 > PyPI package coming soon — for now, install from GitHub.
 
-### One-Command Setup
+### One-Command Setup (Claude Code)
 
 ```bash
-# Initialize DataVeil for your tools
+# Configure Claude Code to route through DataVeil
 dv init
 ```
 
 This will:
-1. Detect installed AI tools (Claude Code, Cursor, Codex)
-2. Backup your current configuration
-3. Point your tools to `http://localhost:8787` (DataVeil gateway)
-4. Remove API keys from tool configs (they're now in DataVeil's encrypted vault)
+1. Detect installed AI tools (auto-configures **Claude Code only**; Cursor/Codex are detected but need [manual setup](#manual-setup-if-you-prefer))
+2. Backup your current configuration (with a one-line restore script)
+3. Point Claude Code to `http://127.0.0.1:8787` (DataVeil gateway)
+4. Remove the API key from the tool config (it now lives in DataVeil's encrypted vault)
 
 ### Manual Setup (if you prefer)
 
@@ -171,18 +174,20 @@ sync:
   interval_seconds: 300
 ```
 
-### Audit Queries
+### Audit Logging (opt-in)
 
-```bash
-# View recent requests
-dv audit query --limit 10
+Audit logging is **disabled by default** — it creates a second copy of request
+metadata. Enable it explicitly if you need it:
 
-# Filter by status code
-dv audit query --status 500
-
-# Export to OSS
-dv audit sync
+```yaml
+# ~/.dataveil/config.yaml
+audit:
+  enabled: true
 ```
+
+Logs are JSON Lines with daily rotation, 30-day retention, and API-key
+scrubbing. Query them with standard tools (`jq`, `grep`) or the Python API
+(`dv.audit.logger.AuditLogger.query`). A `dv audit` CLI is planned.
 
 ## Architecture
 
@@ -207,6 +212,17 @@ dv audit sync
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed design.
 
+## Security & Limitations
+
+DataVeil reduces risk; it does not eliminate it. Read [SECURITY.md](SECURITY.md) for the full threat model. Key points:
+
+- **Rule-based detection is not exhaustive.** Encoded secrets, novel formats, or sensitive facts written in prose can pass through. False positives can also redact context the model needs.
+- **An untrusted upstream stays untrusted.** If you route traffic through a third-party relay you don't control, DataVeil only reduces what it sees. Keys previously exposed to such relays should be rotated.
+- **The running gateway holds decrypted keys in memory.** Keep it bound to `127.0.0.1` (the default) and don't expose the port.
+- **No default vault password.** The gateway resolves the password from `DV_VAULT_PASSWORD` → system keychain (`dv vault save-password`) → interactive prompt, and refuses to start otherwise.
+- **Safe defaults:** audit logging and OSS sync are **off** unless you enable them.
+- **Layer your defenses:** use `gitleaks`/pre-commit secret scanning and `.env` hygiene alongside DataVeil — it complements them, it doesn't replace them.
+
 ## FAQ
 
 <details>
@@ -224,7 +240,7 @@ Our semantic placeholders (`<EMAIL_1>`, `<API_KEY_1>`) are designed to preserve 
 <details>
 <summary><b>Is my vault password safe?</b></summary>
 
-Yes. Your password is never stored. It's used to derive an encryption key via Argon2id (memory-hard, GPU-resistant). Even if someone steals your `vault.db`, they can't decrypt it without your password.
+The password is never written to disk by DataVeil. It derives the encryption key via Argon2id (memory-hard, GPU-resistant), so an attacker with only `vault.db` faces an expensive brute-force. Caveats: the decrypted keys live in gateway process memory while it runs, and if you export `DV_VAULT_PASSWORD` it is visible to your shell environment. See [SECURITY.md](SECURITY.md).
 </details>
 
 <details>

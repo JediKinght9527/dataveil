@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2026-07-25
+
+### Security (breaking behavior changes)
+- **Fixed critical vault unlock flaw**: the gateway previously used the config
+  field `keyring_account` (default `"vault"`) directly as the decryption
+  password and never read the system keychain. The gateway now resolves the
+  password via `DV_VAULT_PASSWORD` env → system keychain → interactive prompt,
+  and **refuses to start** with no password source. There is no default password.
+- **Audit logging is now disabled by default** (opt-in via `audit.enabled=true`).
+  Audit logs are a second copy of request metadata and should be a conscious choice.
+- Added `VaultStore.verify_password()`: wrong passwords are rejected at startup
+  and in every `dv vault` command instead of failing later at decrypt time.
+- `dv start` now warns when binding to anything other than `127.0.0.1`.
+
+### Added
+- `dv vault save-password`: store the vault password in the system keychain
+  (requires `pip install dataveil[keychain]`).
+- `SECURITY.md`: explicit threat model, limitations, and safe-usage guidance.
+- README "Security & Limitations" section.
+
+### Fixed
+- `dv init` no longer claims to support Cursor/Codex auto-configuration; it
+  configures Claude Code and clearly marks other tools as manual-setup-only.
+  Backups and the restore script now only cover files actually modified.
+- Replaced template `yourname/dataveil` links with the real repository URL.
+- Removed README references to a `dv audit query` CLI that does not exist yet.
+
 ## [0.1.0] - 2026-07-23
 
 ### Added

@@ -1,6 +1,6 @@
 [project]
 name = "dataveil"
-version = "0.1.0"
+version = "0.2.0"
 description = "Privacy-first local gateway for LLM APIs"
 readme = "README.md"
 license = {text = "MIT"}
@@ -19,6 +19,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+keychain = ["keyring>=24.0"]
 dev = [
     "pytest>=7.0",
     "pytest-asyncio>=0.21",

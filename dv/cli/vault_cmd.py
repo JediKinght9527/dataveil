@@ -1,9 +1,18 @@
-"""Vault management commands: dv vault add/list/rm."""
+"""Vault management commands: dv vault add/list/rm/save-password."""
 
 import click
 
 from dv.config import load_config
 from dv.vault.store import VaultStore
+
+
+def _open_store(password: str) -> VaultStore:
+    """Open the vault and verify the password against existing secrets."""
+    config = load_config()
+    store = VaultStore(db_path=config.vault.path, password=password)
+    if not store.verify_password():
+        raise click.ClickException("Wrong vault password (cannot decrypt existing secrets).")
+    return store
 
 
 @click.group(name="vault")
@@ -20,8 +29,7 @@ def vault():
 @click.password_option("--password", prompt="Vault password", confirmation_prompt=False)
 def add(profile: str, provider: str, base_url: str, api_key: str, password: str):
     """Add an encrypted API key to the vault."""
-    config = load_config()
-    store = VaultStore(db_path=config.vault.path, password=password)
+    store = _open_store(password)
 
     if not base_url:
         from dv.vault.profile import DEFAULT_PROFILES
@@ -39,8 +47,7 @@ def add(profile: str, provider: str, base_url: str, api_key: str, password: str)
 @click.password_option("--password", prompt="Vault password", confirmation_prompt=False)
 def list_keys(password: str):
     """List stored profiles."""
-    config = load_config()
-    store = VaultStore(db_path=config.vault.path, password=password)
+    store = _open_store(password)
     profiles = store.list_profiles()
     if not profiles:
         click.echo("No profiles found.")
@@ -55,9 +62,34 @@ def list_keys(password: str):
 @click.password_option("--password", prompt="Vault password", confirmation_prompt=False)
 def rm(profile: str, password: str):
     """Remove a profile from the vault."""
-    config = load_config()
-    store = VaultStore(db_path=config.vault.path, password=password)
+    store = _open_store(password)
     if store.remove_key(profile):
         click.echo(f"🗑️  Profile '{profile}' removed.")
     else:
         click.echo(f"⚠️  Profile '{profile}' not found.")
+
+
+@vault.command(name="save-password")
+@click.password_option("--password", prompt="Vault password", confirmation_prompt=True)
+def save_password(password: str):
+    """Store the vault password in the system keychain (macOS/Windows/Linux)."""
+    config = load_config()
+    # Verify before saving so we never persist a wrong password.
+    store = VaultStore(db_path=config.vault.path, password=password)
+    if not store.verify_password():
+        raise click.ClickException("Wrong vault password (cannot decrypt existing secrets).")
+
+    from dv.vault.keyring import set_keychain_password
+
+    if set_keychain_password(
+        password,
+        service=config.vault.keyring_service,
+        account=config.vault.keyring_account,
+    ):
+        click.echo("✅ Vault password stored in system keychain.")
+        click.echo("   'dv start' will now unlock the vault automatically.")
+    else:
+        raise click.ClickException(
+            "Could not access the system keychain. Install the 'keyring' package: "
+            "pip install keyring"
+        )

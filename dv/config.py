@@ -24,7 +24,9 @@ class SyncConfig(BaseModel):
 
 
 class AuditConfig(BaseModel):
-    enabled: bool = True
+    # Disabled by default: audit logs are a second copy of request metadata.
+    # Opt in explicitly with audit.enabled=true or DV_AUDIT_ENABLED=1.
+    enabled: bool = False
     log_path: Path = Field(default_factory=lambda: Path.home() / ".dataveil" / "audit.jsonl")
     retention_days: int = 30
     scrub_sensitive: bool = True

@@ -11,7 +11,8 @@ class TestConfigLoader:
         config = loader.load()
         assert config.gateway.host == "127.0.0.1"
         assert config.gateway.port == 8787
-        assert config.audit.enabled is True
+        # Audit is opt-in: it creates a second copy of request metadata.
+        assert config.audit.enabled is False
         assert config.privacy.mode == "transparent"
 
     def test_env_override(self, monkeypatch):

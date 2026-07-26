@@ -69,6 +69,21 @@ class VaultStore:
                 "api_key": api_key,
             }
 
+    def verify_password(self) -> bool:
+        """Verify the password can decrypt existing secrets.
+
+        Returns True for an empty vault (nothing to verify against).
+        """
+        with sqlite3.connect(self.db_path) as conn:
+            row = conn.execute("SELECT encrypted_key FROM secrets LIMIT 1").fetchone()
+        if not row:
+            return True
+        try:
+            VaultCrypto.decrypt(row[0], self.password)
+            return True
+        except Exception:
+            return False
+
     def list_profiles(self) -> list[str]:
         with sqlite3.connect(self.db_path) as conn:
             rows = conn.execute("SELECT profile FROM secrets ORDER BY profile").fetchall()
